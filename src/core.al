@@ -12,6 +12,49 @@ record incidentInformation {
     resolution String @optional
 }
 
+entity TicketMetrics {
+    id UUID @id @default(uuid()),
+    snapshotDate DateTime @default(now()) @indexed,
+    totalTickets Int,
+    ticketsInProcessing Int,
+    ticketsProcessed Int,
+    ticketsFailedToProcess Int,
+    dnsWlanTotal Int,
+    dnsWlanResolved Int,
+    dnsWlanFailed Int,
+    authTotal Int,
+    authResolved Int,
+    authFailed Int,
+    accessTotal Int,
+    accessResolved Int,
+    accessFailed Int,
+    networkTotal Int,
+    networkResolved Int,
+    networkFailed Int,
+    otherTotal Int
+}
+
+entity ProcessorStats {
+    id UUID @id @default(uuid()),
+    processorName @enum("dnsprocessor", "authprocessor", "accessprocessor", "networkprocessor") @indexed,
+    snapshotDate DateTime @default(now()),
+    ticketsProcessed Int,
+    ticketsFailed Int,
+    avgResolutionTimeMs Int @optional,
+    successRate Decimal
+}
+
+entity HumanInterventionLog {
+    id UUID @id @default(uuid()),
+    ticketId String @indexed,
+    servicenowId String,
+    category String,
+    reason String,
+    createdAt DateTime @default(now()),
+    resolvedAt DateTime @optional,
+    resolvedBy String @optional
+}
+
 
 agent ticketCategorizer {
     instruction "Categorize the ticket instance into DNS_WLAN, AUTH, ACCESS, NETWORK, OTHER.
@@ -47,4 +90,69 @@ workflow @after create:servicenow/incident {
     }}
 
     {ticketOrchestrator {message servicenow/incident}}
+}
+
+@public workflow getDashboardStats {
+    {
+        servicenow/incident? {},
+        @into {status servicenow/incident.ai_status, count @count(servicenow/incident.sys_id)},
+        @groupBy(servicenow/incident.ai_status)
+    }
+}
+
+@public workflow getStatsByCategory {
+    {servicenow/incident {category? getStatsByCategory.category}}
+}
+
+@public workflow getProcessorPerformance {
+    {ProcessorStats {processorName? getProcessorPerformance.processorName}}
+}
+
+@public workflow getHumanInterventionQueue {
+    {servicenow/incident {requires_human? true}}
+}
+
+@public workflow refreshMetrics {
+    {servicenow/incident? {}} @as allTickets;
+    {servicenow/incident {ai_status? "in-processing"}} @as inProcessingTickets;
+    {servicenow/incident {ai_status? "processed"}} @as processedTickets;
+    {servicenow/incident {ai_status? "failed-to-process"}} @as failedTickets;
+
+    {servicenow/incident {category? "DNS_WLAN"}} @as dnsTotal;
+    {servicenow/incident {category? "DNS_WLAN", ai_status? "processed"}} @as dnsResolved;
+    {servicenow/incident {category? "DNS_WLAN", ai_status? "failed-to-process"}} @as dnsFailed;
+
+    {servicenow/incident {category? "AUTH"}} @as authTotal;
+    {servicenow/incident {category? "AUTH", ai_status? "processed"}} @as authResolved;
+    {servicenow/incident {category? "AUTH", ai_status? "failed-to-process"}} @as authFailed;
+
+    {servicenow/incident {category? "ACCESS"}} @as accessTotal;
+    {servicenow/incident {category? "ACCESS", ai_status? "processed"}} @as accessResolved;
+    {servicenow/incident {category? "ACCESS", ai_status? "failed-to-process"}} @as accessFailed;
+
+    {servicenow/incident {category? "NETWORK"}} @as networkTotal;
+    {servicenow/incident {category? "NETWORK", ai_status? "processed"}} @as networkResolved;
+    {servicenow/incident {category? "NETWORK", ai_status? "failed-to-process"}} @as networkFailed;
+
+    {servicenow/incident {category? "OTHER"}} @as otherTotal;
+
+    {TicketMetrics {
+        totalTickets allTickets.length,
+        ticketsInProcessing inProcessingTickets.length,
+        ticketsProcessed processedTickets.length,
+        ticketsFailedToProcess failedTickets.length,
+        dnsWlanTotal dnsTotal.length,
+        dnsWlanResolved dnsResolved.length,
+        dnsWlanFailed dnsFailed.length,
+        authTotal authTotal.length,
+        authResolved authResolved.length,
+        authFailed authFailed.length,
+        accessTotal accessTotal.length,
+        accessResolved accessResolved.length,
+        accessFailed accessFailed.length,
+        networkTotal networkTotal.length,
+        networkResolved networkResolved.length,
+        networkFailed networkFailed.length,
+        otherTotal otherTotal.length
+    }}
 }
