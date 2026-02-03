@@ -3,13 +3,13 @@
   "version": "0.0.1",
   "dependencies": {
     "agentlang": "*",
-    "servicenow": "github:agentlang-hub/resolvers#main&path:/servicenow",
+    "servicenow": "github:agentlang-hub/resolvers#update-saleforce-fields&path:/servicenow",
     "dnsprocessor": "git+https://github.com/agentlang-hub/dnsprocessor.git#main",
     "authprocessor": "git+https://github.com/agentlang-hub/authprocessor.git#main",
     "accessprocessor": "git+https://github.com/agentlang-hub/accessprocessor.git#main",
     "networkprocessor": "git+https://github.com/agentlang-hub/networkprocessor.git#main"
   },
-  "scripts": {
-    "agent": "node ./node_modules/agentlang/bin/cli.js run ."
+  "devDependencies": {
+    "@agentlang/lstudio": "*"
   }
 }
